@@ -15,7 +15,7 @@ namespace BoxOptimization
             return 2 * (X1 * X2 + X2 * X3 + X1 * X3) - 1;
         }
 
-        static double[] InequalityConstraint(double X1, double X2, double X3)
+        static double[] InequalityConstraint(double X1, double X2, double X3) // hi
         {
             return new double[]{-X1, -X2, -X3};
         }
@@ -40,8 +40,6 @@ namespace BoxOptimization
             double gradObjectiveX2 = -X1 * X3;
             double gradObjectiveX3 = -X1 * X2;
             
-            double[] gradient = new double [3];
-            
             double equalityConstraint = EqualityConstraint(X1, X2, X3);
             double gradEqualityX1 = 4 * equalityConstraint * (X2 + X3);
             double gradEqualityX2 = 4 * equalityConstraint * (X1 + X3);
@@ -53,11 +51,11 @@ namespace BoxOptimization
             double gradInequalityX3 = 0;
 
             if (inequalityConstraints[0] > 0) 
-                gradInequalityX1 = 2 * inequalityConstraints[0];
+                gradInequalityX1 = -2 * inequalityConstraints[0];
             if (inequalityConstraints[1] > 0)
-                gradInequalityX2 = 2 * inequalityConstraints[1];
+                gradInequalityX2 = -2 * inequalityConstraints[1];
             if (inequalityConstraints[2] > 0)
-                gradInequalityX3 = 2 * inequalityConstraints[2];
+                gradInequalityX3 = -2 * inequalityConstraints[2];
 
             double gradX1 = gradObjectiveX1 + (1.0 / r) * (gradEqualityX1 + gradInequalityX1);
             double gradX2 = gradObjectiveX2 + (1.0 / r) * (gradEqualityX2 + gradInequalityX2);
@@ -89,11 +87,7 @@ namespace BoxOptimization
                 double newX1 = X1 - learningRate * grad[0];
                 double newX2 = X2 - learningRate * grad[1];
                 double newX3 = X3 - learningRate * grad[2];
-
-                //double diff = Math.Sqrt(Math.Pow(newX1 - X1, 2) + Math.Pow(newX2 - X2, 2) + Math.Pow(newX3 - X3, 2));
-
                 
-
                 if (Math.Sqrt(Math.Pow(newX1 - X1, 2) + Math.Pow(newX2 - X2, 2) + Math.Pow(newX3 - X3, 2)) < tolerance) // jei pokytis mazesnis nei tolerancija, stabdom
                 {
                     break;
@@ -108,7 +102,21 @@ namespace BoxOptimization
 
             return (X1, X2, X3, iterations, functionEvaluations);
         }
+        static void ExplorePenaltyMultiplierInfluence(string pointName, double x1, double x2, double x3)
+        {
+            Console.WriteLine("\n  Baudos funkcijos P(X, r) = f(X) + (1/r) * b(X) reikšmės kintant r:");
+            Console.WriteLine("  ------------------------------------------------------------------------------------");
+            Console.WriteLine("  r  | Visa Baudos Funkcija P(X,r)");
+            Console.WriteLine("  ------------------------------------------------------------------------------------");
 
+            double[] rValuesToExplore = { 10.0, 9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.5, 0.1, 0.05, 0.01 };
+
+            foreach (double r in rValuesToExplore)
+            {
+                double penaltyFunctionValue = PenaltyFunction(x1, x2, x3, r);
+                Console.WriteLine($"  {r} | {penaltyFunctionValue}");
+            }
+        }
         static void Main(string[] args)
         {
             int a = 9, b = 7, c = 7;
@@ -119,18 +127,21 @@ namespace BoxOptimization
                 ("X1", 1, 1, 1),
                 ("Xm", a / 10.0, b / 10.0, c / 10.0)
             };
-
-            double[] rValues = { 10.0, 1.0, 0.5, 0.1, 0.05, 0.01 };
-            double learningRate = 0.01;
+            
+            ExplorePenaltyMultiplierInfluence(startPoints[1].Name, startPoints[1].X1, startPoints[1].X2, startPoints[1].X3);
+            double[] rValues = { 10.0, 9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.5, 0.1, 0.05, 0.01 };
+            double learningRate = 0.005;
             double tolerance = 1e-6;
 
             foreach (var (name, initX1, initX2, initX3) in startPoints)
             {
+                Console.WriteLine("--------------------------------");
+                Console.WriteLine($"f(x) = {ObjectiveFunction(initX1, initX2, initX3)}, gi(x) = {EqualityConstraint(initX1, initX2, initX3)}, hi(x) = [{string.Join(", ", InequalityConstraint(initX1, initX2, initX3))}]");
                 Console.WriteLine($"\nStarting optimization from {name}:");
 
-                // Start from initial point
                 double x1 = initX1, x2 = initX2, x3 = initX3;
-
+                double iterations = 0;
+                double functionEvaluations = 0;
                 foreach (double r in rValues)
                 {
                     var result = GradientDescent(x1, x2, x3, learningRate, tolerance, r);
@@ -141,11 +152,12 @@ namespace BoxOptimization
 
                     double f = ObjectiveFunction(x1, x2, x3);
                     double penalty = PenaltyFunction(x1, x2, x3, r);
-
-                    Console.WriteLine($"r={r:F2} -> x=({x1:F6}, {x2:F6}, {x3:F6}), Volume={-f:F6}, PenaltyFunc={penalty:F6}, Iterations={result.numIterations}, Function Evaluations={result.numFunctionEvaluations}");
+                    Console.WriteLine($"r={r:F2} -> x=({x1:F6}, {x2:F6}, {x3:F6}), Turis={-f:F6}, BaudosFunkcija={penalty:F6}, Iterations={result.numIterations}, Function Evaluations={result.numFunctionEvaluations}");
+                    iterations += result.numIterations;
+                    functionEvaluations += result.numFunctionEvaluations;
                 }
+                Console.WriteLine($"Total iterations= {iterations}, Total function evaluations= {functionEvaluations}");
             }
         }
-
     }
 }
